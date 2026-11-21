@@ -8,11 +8,14 @@
 #        aws/watch.sh --pause   terminate the instance, keep the volume (resume: aws/launch.sh)
 #        aws/watch.sh --kill    fetch whatever logs exist, terminate and delete the volume
 # AUTO_RELAUNCH=0 disables relaunching after spot interruptions.
+# KEEP_VOLUME=1 keeps the data volume (built .oleans, ~1.2 TB) after a successful
+# build, e.g. to animate proofs later; it costs ~$0.29/h until deleted with --kill.
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -f state.env ] || { echo "No state.env: nothing launched."; exit 1; }
 INTERVAL=${INTERVAL:-600}
 AUTO_RELAUNCH=${AUTO_RELAUNCH:-1}
+KEEP_VOLUME=${KEEP_VOLUME:-0}
 TOTAL=175187
 W=/home/ubuntu/riemann-work
 
@@ -70,7 +73,13 @@ while true; do
       BUILT=$(sed -n 's/^built=//p' <<<"$OUT")
       echo "$(date -u +%T) [${HOURS}h since first launch] $(head -1 <<<"$OUT"), built ${BUILT:-?}/$TOTAL"
       case "$(head -1 <<<"$OUT")" in
-        ok) fetch_logs; terminate; delete_volume; echo "VERIFIED."; exit 0 ;;
+        ok) fetch_logs; terminate
+            if [ "$KEEP_VOLUME" = 1 ]; then
+              echo "Volume $VOLUME_ID kept with the built project (~\$0.29/h). Delete with: aws/watch.sh --kill"
+            else
+              delete_volume
+            fi
+            echo "VERIFIED."; exit 0 ;;
         failed*) fetch_logs; terminate
                  echo "Build failed; volume $VOLUME_ID kept for inspection or resume (~\$0.29/h)."
                  echo "Delete it with: aws/watch.sh --kill"; exit 1 ;;
