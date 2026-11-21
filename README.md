@@ -4,6 +4,7 @@
 [![Mathlib](https://img.shields.io/badge/Mathlib-4-informational)](https://github.com/leanprover-community/mathlib4)
 [![Remark](https://img.shields.io/badge/paper-remark.pdf-b31b1b)](https://alpo.ge/remark.pdf)
 [![Peer reviewed](https://img.shields.io/badge/peer%20reviewed-not%20yet-orange)](#)
+[![Certified by Lean & Mathlib](https://img.shields.io/badge/Lean%20%26%20Mathlib-certified-brightgreen?logo=lean)](https://leanprover-community.github.io/blog/posts/riemann-hypothesis/)
 [![Millennium Prize](https://img.shields.io/badge/Millennium%20Prize-unclaimed-gold)](#)
 [![Zeros on the line](https://img.shields.io/badge/Re(s)-%3D%201%2F2%20(allegedly)-success)](#)
 [![Works on my machine](https://img.shields.io/badge/works%20on-my%20machine-lightgrey)](#)
