@@ -13,11 +13,19 @@
 
 📝 **Blog post:** [Did Claude Prove the Riemann Hypothesis? 🤔 Let's Ask a Spot Instance](https://builder.aws.com/content/3MQgDMMW6Kg6qZSjR9ozgcsogAv/did-claude-prove-the-riemann-hypothesis-lets-ask-a-spot-instance) on AWS Builder Center ([source](blog/ask-a-spot-instance.md)): what we've built so far to check the formalization on AWS, and what we learned along the way.
 
+![Domain coloring of the Riemann ξ function: spinning pinwheels, one per zero, all lined up on the critical line](docs/domain-coloring.gif)
+
+<sub>The completed zeta function ξ(s) over 0 ≤ Im(s) ≤ 60, colored by phase. Each pinwheel is a zero of ζ, and the picture is mirror-symmetric about the critical line Re(s) = ½, where every zero shown sits. Made with [`docs/domain_coloring.py`](docs/domain_coloring.py).</sub>
+
 ## About
 
-In [*remark.pdf*](https://alpo.ge/remark.pdf), Levent Alpöge announced a proof of the Riemann Hypothesis found together with Claude, along with a Lean 4 formalization of the argument. The formalization is distributed as a 14-part split archive (`lean.tar.gz.part01` to `part14`) hosted at [alpo.ge](https://alpo.ge).
+On November 20th 2026, [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf) of the Riemann Hypothesis found together with Claude, along with a Lean 4 formalization of the argument. The formalization is distributed as a 14-part split archive (`lean.tar.gz.part01` to `part14`) hosted at [alpo.ge](https://alpo.ge).
 
 This repository hosts the formalization, in [`lean/`](lean). A script, `fetch_merge.sh`, fetches the parts from alpo.ge, merges them and unpacks the Lean project, so you can read it and build it yourself. The claim has not been independently verified, so check it for yourself.
+
+![ζ(½ + it) winds through the origin at each nontrivial zero, and each zero lights up on the critical line Re(s) = ½](docs/zeta.gif)
+
+<sub>The path of ζ(½ + it) for 0 ≤ t ≤ 52. Every time it passes through 0, there's a zero of ζ on the critical line. The Riemann Hypothesis says *all* the nontrivial zeros are there. Made with [`docs/zeta.py`](docs/zeta.py).</sub>
 
 ## Getting Started
 
@@ -53,6 +61,13 @@ The project has about 175,000 modules, too many for most laptops. [`verify.sh`](
 aws/launch.sh          # launch (or resume) the instance
 aws/watch.sh           # relaunch after interruptions, fetch logs and clean up when done
 python3 aws/tui.py     # live dashboard
+```
+
+To correlate build progress with resource usage and cost, `aws/stats.sh` collects per-module finish and compile times, the full build log, sysstat history, CloudWatch metrics for the instance and data volume, and spot prices into `aws/results/stats/`. `aws/watch.sh` runs it every 30 minutes and before tearing anything down. `aws/analyze.py` (standard library only) joins it all into `modules.csv`, `timeseries.csv` and an HTML report:
+
+```bash
+aws/stats.sh           # snapshot statistics from the running build
+python3 aws/analyze.py # write aws/results/stats/report.html
 ```
 
 ![Dashboard tracking the build on a c6a.48xlarge](docs/tui.gif)

@@ -8,6 +8,8 @@
 #        aws/watch.sh --pause   terminate the instance, keep the volume (resume: aws/launch.sh)
 #        aws/watch.sh --kill    fetch whatever logs exist, terminate and delete the volume
 # AUTO_RELAUNCH=0 disables relaunching after spot interruptions.
+# Every STATS_EVERY polls (default 3) and before any teardown, aws/stats.sh saves
+# build and resource statistics to aws/results/stats/ (analyse with aws/analyze.py).
 # KEEP_VOLUME=1 keeps the data volume (built .oleans, ~1.2 TB) after a successful
 # build, e.g. to animate proofs later; it costs ~$0.29/h until deleted with --kill.
 set -euo pipefail
@@ -16,6 +18,7 @@ cd "$(dirname "$0")"
 INTERVAL=${INTERVAL:-600}
 AUTO_RELAUNCH=${AUTO_RELAUNCH:-1}
 KEEP_VOLUME=${KEEP_VOLUME:-0}
+STATS_EVERY=${STATS_EVERY:-3}
 TOTAL=175187
 W=/home/ubuntu/riemann-work
 
@@ -47,6 +50,10 @@ delete_volume() {
   echo "Volume $VOLUME_ID deleted. Nothing left running or stored."
 }
 
+stats() {
+  ./stats.sh > /dev/null 2>&1 || echo "$(date -u +%T) aws/stats.sh failed; continuing."
+}
+
 fetch_logs() {
   mkdir -p results
   local out
@@ -58,12 +65,14 @@ fetch_logs() {
 load
 case "${1:-}" in
   --once) status; exit ;;
-  --pause) terminate; echo "Volume $VOLUME_ID kept (~\$0.29/h for 2 TB). Resume with aws/launch.sh."; exit ;;
-  --kill) fetch_logs; terminate; delete_volume; exit ;;
+  --pause) stats; terminate; echo "Volume $VOLUME_ID kept (~\$0.29/h for 2 TB). Resume with aws/launch.sh."; exit ;;
+  --kill) stats; fetch_logs; terminate; delete_volume; exit ;;
 esac
 
+POLL=0
 while true; do
   load
+  POLL=$((POLL + 1))
   STATE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
     --query 'Reservations[0].Instances[0].[State.Name,StateReason.Code]' --output text 2>/dev/null || echo "gone -")
   HOURS=$(( ($(date +%s) - $(date -d "$FIRST_LAUNCHED" +%s)) / 3600 ))
@@ -72,15 +81,16 @@ while true; do
       OUT=$(status || echo unreachable)
       BUILT=$(sed -n 's/^built=//p' <<<"$OUT")
       echo "$(date -u +%T) [${HOURS}h since first launch] $(head -1 <<<"$OUT"), built ${BUILT:-?}/$TOTAL"
+      [ $((POLL % STATS_EVERY)) -ne 0 ] || stats
       case "$(head -1 <<<"$OUT")" in
-        ok) fetch_logs; terminate
+        ok) stats; fetch_logs; terminate
             if [ "$KEEP_VOLUME" = 1 ]; then
               echo "Volume $VOLUME_ID kept with the built project (~\$0.29/h). Delete with: aws/watch.sh --kill"
             else
               delete_volume
             fi
             echo "VERIFIED."; exit 0 ;;
-        failed*) fetch_logs; terminate
+        failed*) stats; fetch_logs; terminate
                  echo "Build failed; volume $VOLUME_ID kept for inspection or resume (~\$0.29/h)."
                  echo "Delete it with: aws/watch.sh --kill"; exit 1 ;;
       esac ;;

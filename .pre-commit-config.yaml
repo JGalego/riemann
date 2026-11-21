@@ -4,6 +4,11 @@ repos:
     hooks:
       - id: shellcheck   # lints all bash/sh scripts
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff-check   # lints all Python scripts
+
   - repo: local
     hooks:
       - id: lean-no-sorry

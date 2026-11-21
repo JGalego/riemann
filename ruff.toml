@@ -1,0 +1,2 @@
+# Lint settings for the helper scripts (aws/, docs/). tui.py declares Python >= 3.9.
+target-version = "py39"

@@ -19,7 +19,7 @@ import subprocess
 import threading
 import time
 from collections import Counter, deque
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from rich.align import Align
@@ -45,16 +45,16 @@ ZEROS = [14.134725, 21.022040, 25.010858, 30.424876, 32.935062, 37.586178,
          88.809111, 92.491899, 94.651344, 95.870634, 98.831194]
 
 FACTS = [
-    "Riemann's 1859 paper is 8 pages long. He wrote that it is 'sehr wahrscheinlich' "
-    "(very likely) that all the roots are real, i.e. on the critical line.",
-    "Hilbert reportedly said that if he woke after a thousand years, his first question "
-    "would be: has the Riemann Hypothesis been proven?",
-    "Hardy reportedly mailed a postcard claiming a proof of RH before a stormy ferry "
-    "crossing, as insurance: God would not let him drown with such undeserved glory.",
+    ("Riemann's 1859 paper is 8 pages long. He wrote that it is 'sehr wahrscheinlich' "
+    "(very likely) that all the roots are real, i.e. on the critical line."),
+    ("Hilbert reportedly said that if he woke after a thousand years, his first question "
+    "would be: has the Riemann Hypothesis been proven?"),
+    ("Hardy reportedly mailed a postcard claiming a proof of RH before a stormy ferry "
+    "crossing, as insurance: God would not let him drown with such undeserved glory."),
     "In 1914 Hardy proved that infinitely many zeros lie on the critical line.",
     "The first nontrivial zero sits at 1/2 + 14.134725...i.",
-    "Montgomery and Dyson noticed, over tea at the IAS in 1972, that zero spacings "
-    "match the eigenvalue statistics of random Hermitian matrices.",
+    ("Montgomery and Dyson noticed, over tea at the IAS in 1972, that zero spacings "
+    "match the eigenvalue statistics of random Hermitian matrices."),
     "Platt and Trudgian (2021) checked that RH holds for all zeros up to height 3*10^12.",
     "This build checks about 17.4 million lines of Lean, roughly 8x the size of Mathlib.",
     "Every module that turns green below has been elaborated and accepted by Lean's kernel.",
@@ -153,7 +153,7 @@ class Monitor:
                f"ubuntu@{ip}", f"{env} bash -s"]
         try:
             r = subprocess.run(cmd, input=PROBE, capture_output=True, text=True,
-                               timeout=40, errors="replace")
+                               timeout=40, errors="replace", check=False)
         except subprocess.TimeoutExpired:
             return None
         return r.stdout if r.returncode == 0 else None
@@ -248,7 +248,7 @@ class Monitor:
         while True:
             try:
                 self.poll()
-            except Exception as e:  # keep the dashboard alive on odd output
+            except Exception as e:  # noqa: BLE001  keep the dashboard alive on odd output
                 self.phase = f"probe error: {e}"
             time.sleep(POLL_SECONDS)
 

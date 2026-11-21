@@ -118,6 +118,24 @@ mkdir -p /home/ubuntu/riemann-work
 mount -o noatime "\$DEV" /home/ubuntu/riemann-work
 chown ubuntu:ubuntu /home/ubuntu/riemann-work
 
+# Keep sysstat history on the data volume, which outlives the instance, and
+# sample every minute (aws/stats.sh exports it). Best effort: never blocks the build.
+(
+  IMDS=http://169.254.169.254/latest
+  TOK=\$(curl -s -X PUT \$IMDS/api/token -H 'X-aws-ec2-metadata-token-ttl-seconds: 60')
+  IID=\$(curl -s -H "X-aws-ec2-metadata-token: \$TOK" \$IMDS/meta-data/instance-id)
+  SA=/home/ubuntu/riemann-work/sysstat/\$IID
+  command -v sadc >/dev/null || [ -x /usr/lib/sysstat/sadc ] || apt-get install -y sysstat
+  sed -i 's/^ENABLED="false"/ENABLED="true"/' /etc/default/sysstat
+  systemctl stop sysstat-collect.timer
+  [ -n "\$IID" ] && mkdir -p "\$SA" && cp -a /var/log/sysstat/. "\$SA"/ && mount --bind "\$SA" /var/log/sysstat
+  { echo "boot=\$(uptime -s)"; echo "vcpus=\$(nproc)"; grep MemTotal /proc/meminfo; } > "\$SA/machine.txt"
+  mkdir -p /etc/systemd/system/sysstat-collect.timer.d
+  printf '[Timer]\nOnCalendar=\nOnCalendar=*:*:00\n' > /etc/systemd/system/sysstat-collect.timer.d/every-minute.conf
+  systemctl daemon-reload
+  systemctl enable --now sysstat-collect.timer
+) || true
+
 echo '$(base64 -w0 ../verify.sh)' | base64 -d > /opt/verify.sh
 cat > /opt/run.sh <<'RUN'
 #!/bin/bash
