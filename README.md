@@ -43,4 +43,16 @@ lake build
 
 If the build finishes without errors, the formalization has been checked by Lean's kernel.
 
+### Build in the cloud
+
+The project has about 175,000 modules, too many for most laptops. [`verify.sh`](verify.sh) builds it from scratch on any Linux machine and checks that the main theorems use only the standard axioms (`propext`, `Classical.choice`, `Quot.sound`). The scripts in [`aws/`](aws) run it on a 192-core EC2 spot instance, and keep progress on a separate volume so the build resumes after a spot interruption:
+
+```bash
+aws/launch.sh          # launch (or resume) the instance
+aws/watch.sh           # relaunch after interruptions, fetch logs and clean up when done
+python3 aws/tui.py     # live dashboard
+```
+
+![Dashboard tracking the build on a c6a.48xlarge](docs/tui.gif)
+
 Stay tuned for updates and further verification of the formalization.
