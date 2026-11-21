@@ -2,6 +2,8 @@
 
 > A claimed Lean 4 proof of the Riemann Hypothesis has ~175000 modules. Here is how we're getting EC2 Spot to check it for less than $5 an hour, and what we learned along the way.
 
+> ⚠️ **Work in progress.** This is a live experiment, not a finished result. The build is still running, the numbers below will change, and the scripts are evolving as we go. Nothing here should be read as a verdict on the proof (yet). Want to follow along or run it yourself? The source code is on GitHub: [github.com/JGalego/riemann](https://github.com/JGalego/riemann).
+
 Levent Alpöge recently announced a proof of the Riemann Hypothesis, found together with Claude, and released a Lean 4 formalization alongside it ([remark.pdf](https://alpo.ge/remark.pdf)). Big claims need independent checks. With Lean, anyone can run that check: build the project, and if Lean's kernel accepts every proof, the theorem follows from the axioms it uses.
 
 The catch is the size. The project has **175,187 modules** (about 17.4 million lines of Lean): roughly 21 times as many files and 7.6 times as many lines as Mathlib itself. That won't build on a laptop. So we moved it to AWS.
