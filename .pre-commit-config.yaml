@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck   # lints all bash/sh scripts
+
+  - repo: local
+    hooks:
+      - id: lean-no-sorry
+        name: no sorry/admit in Lean files
+        description: A proof with sorry/admit is not a proof.
+        language: pygrep
+        entry: '\b(sorry|admit)\b'
+        files: '\.lean$'

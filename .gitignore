@@ -1,2 +1,6 @@
 download/parts/lean.tar.gz.part*
 download/lean.tar.gz
+aws/*.pem
+aws/state.env
+aws/known_hosts
+aws/results/
