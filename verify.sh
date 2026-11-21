@@ -23,6 +23,8 @@ STATUS_FILE="$WORK/STATUS"
 log() { printf '\n=== [%s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
 fail() { echo "failed: $*" > "$STATUS_FILE"; log "FAILED: $*"; exit 1; }
 echo running > "$STATUS_FILE"
+# Many-core machines run hundreds of parallel unpackers/Lean processes.
+ulimit -n 1048576 2>/dev/null || ulimit -n "$(ulimit -Hn)" || true
 
 log "Machine: $(nproc) vCPU, $(free -g | awk '/Mem:/{print $2}') GB RAM"
 df -h "$WORK" | tail -1

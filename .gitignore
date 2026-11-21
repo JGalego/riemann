@@ -4,6 +4,8 @@ aws/*.pem
 aws/state.env
 aws/known_hosts
 aws/results/
+.lake/
+aws/watch.log
 aws/.cm-*
 __pycache__/
 docs/tui.mp4
