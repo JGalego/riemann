@@ -5,9 +5,9 @@
 > ⚠️ **Work in progress.** This is a live experiment, not a finished result. The build is still running, the numbers below will change, and the scripts are evolving as we go. Nothing here should be read as a verdict on the proof (yet). Want to follow along or run it yourself? The source code is on GitHub: [github.com/JGalego/riemann](https://github.com/JGalego/riemann).
 
 
-The first time I read about the Riemann Hypothesis (RH) was in Thomas Pynchon's *Against the Day* (highly recommended).
+The first time I read about the Riemann Hypothesis (RH) was in Thomas Pynchon's novel *Against the Day*, which I highly recommend. In the novel, RH symbolizes the hidden structure connecting reality and possibility, suggesting that beneath the apparent chaos of existence lies an underlying order. In fact, the connection between RH and chaos is not just metaphorical, since the [statistical behaviour of Riemann zeros is mathematically linked to quantum chaos and random matrix theory](https://michaelberryphysics.wordpress.com/wp-content/uploads/2013/07/berry401.pdf), although the deeper physical relationship and its significance remains within the realm of conjecture.
 
-This led me to borrow my first book from the college library: Titchmarsh's *The Theory of the Riemann Zeta-Function*, which I devoured in a couple of weeks. Or perhaps it was Mike & Ike's *Quantum Computation and Quantum Information*. For the purposes of this story, I'm going with Titchmarsh.
+The fascination with the story led me to borrow another book, the first one I'd take from the college library: [Titchmarsh's *The Theory of the Riemann Zeta-Function*](https://sites.math.rutgers.edu/~zeilberg/EM18/TitchmarshZeta.pdf), which I devoured in a couple of weeks. Or perhaps it was Mike & Ike's *Quantum Computation and Quantum Information*. For the purposes of this story, I'm going with Titchmarsh.
 
 RH has been lurking in the background ever since. So when [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf), found together with Claude and accompanied by a Lean 4 formalization, I couldn't resist trying to check it independently.
 
