@@ -82,7 +82,13 @@ if [ "$FULL" = 1 ]; then
   echo @issues
   grep -c '^error' $W/build.log 2>/dev/null || echo 0
   grep -c '^warning' $W/build.log 2>/dev/null || echo 0
+  echo @slowest
+  grep -oE 'Built [^ ]+ \([0-9.]+s\)' $W/build.log 2>/dev/null \
+    | awk '{gsub(/[()s]/, "", $3); print $3, $2}' | sort -rn | head -5
 fi
+echo @buildtime
+grep -oE 'lake build exit status 0 after [0-9]+s' /home/ubuntu/verify.out 2>/dev/null | tail -1 \
+  | grep -oE '[0-9]+s$' | tr -d s
 echo @logsize; stat -c %s $W/build.log 2>/dev/null || echo 0
 echo @log; tail -c +$((OFF + 1)) $W/build.log 2>/dev/null | head -c 2000000
 """
@@ -141,6 +147,7 @@ class Monitor:
         self.recent: deque = deque(maxlen=8)
         self.slowest: list[tuple[float, str]] = []
         self.history: deque = deque(maxlen=720)  # (time, built) samples
+        self.build_secs: int | None = None       # set once lake build has succeeded
         self.tick = 0
 
     # -- polling -------------------------------------------------------------
@@ -200,6 +207,15 @@ class Monitor:
             if "issues" in sections and len(sections["issues"]) >= 2:
                 self.errors = int(sections["issues"][0] or 0)
                 self.warnings = int(sections["issues"][1] or 0)
+            # The whole log's slowest modules, so modules built while the
+            # dashboard was closed still count.
+            for line in sections.get("slowest", []):
+                parts = line.split()
+                if len(parts) == 2:
+                    self.slowest.append((float(parts[0]), parts[1]))
+            self.slowest = sorted(set(self.slowest), reverse=True)[:5]
+            bt = (sections.get("buildtime") or [""])[0].strip()
+            self.build_secs = int(bt) if bt.isdigit() else None
             size = int((sections.get("logsize") or ["0"])[0] or 0)
             if self.log_off is None or size < self.log_off:
                 # First poll (or a fresh log): only look at the recent tail.
@@ -242,7 +258,7 @@ class Monitor:
             secs = 0.0 if num is None else float(num) / (1000 if unit == "ms" else 1)
             self.recent.appendleft((name, secs))
             self.slowest.append((secs, name))
-            self.slowest = sorted(self.slowest, reverse=True)[:5]
+            self.slowest = sorted(set(self.slowest), reverse=True)[:5]
 
     def run(self):
         while True:
@@ -353,31 +369,44 @@ def critical_line(mon: Monitor, width: int) -> Panel:
     axis = Text(f"Im(s)=0{' ' * max(0, w - 18)}Im(s)=100", style="dim")
 
     rate, eta = rates(mon)
+    if mon.build_secs:
+        rate_text = (f"built in {fmt_dur(mon.build_secs)} · "
+                     f"{mon.total / mon.build_secs * 60:,.0f}/min avg")
+        eta_text = "ETA done"
+    elif rate is None:
+        rate_text, eta_text = "measuring rate…", "ETA —"
+    else:
+        rate_text = f"{rate:,.0f} modules/min"
+        eta_text = f"ETA {fmt_dur(eta)}" if eta else "ETA —"
     spark = sparkline(mon, 40)
     stats = Table.grid(padding=(0, 2))
     stats.add_row(
         Text(f"{built:,} / {mon.total:,} modules", style="bold"),
         Text(f"{frac * 100:.2f}%", style="bold bright_cyan"),
         Text(f"zeros lit: {confirmed}/{len(ZEROS)}", style="gold1"),
-        Text(f"{rate:,.0f} modules/min" if rate else "measuring rate…", style="green"),
-        Text(f"ETA {fmt_dur(eta)}" if eta else "ETA —", style="yellow"),
+        Text(rate_text, style="green"),
+        Text(eta_text, style="yellow"),
     )
     body = Group(line, axis, Text(), stats,
                  Text.assemble(("throughput ", "dim"), (spark, "green")))
     return Panel(body, title="[b]the critical line[/b]  Re(s) = ½", border_style="bright_cyan")
 
 
-def rates(mon: Monitor):
+def rates(mon: Monitor) -> tuple[float | None, float | None]:
+    """Modules/min over the last 15 minutes and the ETA in seconds.
+
+    (None, None) until there is a minute of samples; the ETA is None while the
+    rate is zero."""
     h = list(mon.history)
     if len(h) < 2:
-        return 0.0, 0.0
+        return None, None
     now_t, now_b = h[-1]
     window = [p for p in h if now_t - p[0] <= 900] or h
     t0, b0 = window[0]
-    if now_t - t0 < 60 or now_b <= b0:
-        return 0.0, 0.0
-    rate = (now_b - b0) / ((now_t - t0) / 60)
-    return rate, (mon.total - now_b) / rate * 60
+    if now_t - t0 < 60:
+        return None, None
+    rate = max(0, now_b - b0) / ((now_t - t0) / 60)
+    return rate, ((mon.total - now_b) / rate * 60 if rate else None)
 
 
 def sparkline(mon: Monitor, n: int) -> str:

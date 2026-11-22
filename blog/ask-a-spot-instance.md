@@ -9,7 +9,7 @@ The first time I read about the Riemann Hypothesis (RH) was in Thomas Pynchon's 
 
 The fascination with the story led me to borrow another book, the first one I'd take from the college library: [Titchmarsh's *The Theory of the Riemann Zeta-Function*](https://sites.math.rutgers.edu/~zeilberg/EM18/TitchmarshZeta.pdf), which I devoured in a couple of weeks. Or perhaps it was Mike & Ike's *Quantum Computation and Quantum Information*. For the purposes of this story, I'm going with Titchmarsh.
 
-RH has been lurking in the background ever since. So when [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf), found together with Claude and accompanied by a Lean 4 formalization, I couldn't resist trying to check it independently.
+The important thing is that RH has been lurking in the background ever since. So when [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf), found together with Claude and accompanied by a Lean 4 formalization, I couldn't resist trying to check it independently.
 
 The idea is simple: let Lean's kernel check the formal proof. The catch is the size: **175,187 Lean modules**, roughly 21 times as many as Mathlib. My current setup can't handle that, so I've taken the build to AWS.
 
