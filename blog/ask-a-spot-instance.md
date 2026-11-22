@@ -1,35 +1,56 @@
 # Did Claude Prove the Riemann Hypothesis? 🤔 Let's Ask a Spot Instance
 
-> A claimed Lean 4 proof of the Riemann Hypothesis has ~175000 modules. Here is how we're getting EC2 Spot to check it for less than $5 an hour, and what we learned along the way.
+> A claimed Lean 4 proof of the Riemann Hypothesis has 175,187 modules. Here's how I'm checking it on EC2 Spot for less than $5 an hour, and what I've learned so far.
 
 > ⚠️ **Work in progress.** This is a live experiment, not a finished result. The build is still running, the numbers below will change, and the scripts are evolving as we go. Nothing here should be read as a verdict on the proof (yet). Want to follow along or run it yourself? The source code is on GitHub: [github.com/JGalego/riemann](https://github.com/JGalego/riemann).
 
-Levent Alpöge recently announced a proof of the Riemann Hypothesis, found together with Claude, and released a Lean 4 formalization alongside it ([remark.pdf](https://alpo.ge/remark.pdf)). Big claims need independent checks. With Lean, anyone can run that check: build the project, and if Lean's kernel accepts every proof, the theorem follows from the axioms it uses.
 
-The catch is the size. The project has **175,187 modules** (about 17.4 million lines of Lean): roughly 21 times as many files and 7.6 times as many lines as Mathlib itself. That won't build on a laptop. So we moved it to AWS.
+The first time I read about the Riemann Hypothesis (RH) was in Thomas Pynchon's *Against the Day* (highly recommended).
 
-## ✅ What's done
+This led me to borrow my first book from the college library: Titchmarsh's *The Theory of the Riemann Zeta-Function*, which I devoured in a couple of weeks. Or perhaps it was Mike & Ike's *Quantum Computation and Quantum Information*. For the purposes of this story, I'm going with Titchmarsh.
 
-- **A reproducible build script.** `verify.sh` installs Lean, downloads the 14-part archive, checks its SHA-256, pulls the Mathlib cache, runs `lake build` (with retries), and then runs `#print axioms` on the main theorems. It fails if they depend on anything beyond Lean's three standard axioms (`propext`, `Classical.choice`, `Quot.sound`). A clean build alone isn't enough: a stray `sorry` or a custom axiom would also compile.
-- **Spot-friendly orchestration.** `launch.sh` ranks five 192-vCPU instance types (c7a, c6a, c7i, m6a, m7a) across every Availability Zone by spot price per vCPU, and launches the cheapest one that has capacity and costs under $4/h.
-- **Progress that survives interruptions.** The sources, Mathlib and build outputs live on a separate 2 TB gp3 EBS volume. When the instance gets a two-minute interruption notice, it stops Lake and flushes the disk. `watch.sh` notices the instance is gone, launches a new one in the same AZ, reattaches the volume, and `lake build` picks up from the last finished module.
-- **Guardrails against surprise bills.** There is a hard 36-hour budget counted from the first launch, and the instance shuts itself down after it finishes. Once the build passes, `watch.sh` fetches the logs and deletes everything.
+RH has been lurking in the background ever since. So when [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf), found together with Claude and accompanied by a Lean 4 formalization, I couldn't resist trying to check it independently.
+
+The idea is simple: let Lean's kernel check the formal proof. The catch is the size: **175,187 Lean modules**, roughly 21 times as many as Mathlib. My current setup can't handle that, so I've taken the build to AWS.
+
+## ✅ What I've built
+
+I use [`verify.sh`](../verify.sh) to install Lean, download the 14-part archive, fetch the Mathlib cache, and run `lake build` with retries. For the AWS run, I pin the archive's expected SHA-256. After the build, the script runs `#print axioms` on five main theorems and fails if they depend on anything beyond `propext`, `Classical.choice`, and `Quot.sound`.
+
+- **Spot capacity.** I use [`launch.sh`](../aws/launch.sh) to rank five 192-vCPU instance types (c7a, c6a, c7i, m6a, m7a) across Availability Zones by quoted Spot price per vCPU. It filters out quotes above $4/h and tries candidates in price order until one has capacity.
+- **Interruptions.** I keep the sources, Mathlib, and build outputs on a separate 2 TB gp3 EBS volume. On a two-minute Spot interruption notice, the instance stops the build and flushes the disk. [`watch.sh`](../aws/watch.sh) launches a replacement in the same AZ and reattaches the volume; Lake reuses the finished modules.
+- **Time budget and cleanup.** I've set a 36-hour budget measured from the first launch, with instance shutdown timers as a backstop. On success, the watcher fetches the logs, terminates the instance, and deletes the data volume by default. On failure, it keeps the volume for inspection. That volume costs about $0.29/h even without a running instance.
 
 ## ⏳ In progress
 
-The build is running right now on a `c6a.48xlarge` (192 vCPUs, 384 GiB) Spot instance in eu-west-1 at about $3.22/h. A few minutes in, it had built 553 of 175,187 modules, with a load average over 180. A small terminal dashboard lets us watch it.
+My build is still running on a `c6a.48xlarge` Spot instance in `eu-west-1`: 192 vCPUs, 384 GiB of RAM, and about **$3.22/h for compute**. In an early snapshot, a few minutes into the run, 553 of the 175,187 modules had finished and the load average was over 180. I use a terminal dashboard to watch progress.
 
-![The dashboard tracking the build: progress along the critical line, per-library progress, a heatmap of all 192 cores, and achievements unlocked along the way](../docs/tui.gif)
+![My dashboard showing module progress and activity across 192 cores](../docs/tui.gif)
 
 ## 💡 Lessons learned
 
-1. **Calibrate before you size.** A short trial run produced about 7 MB of build output per module. Across 175k modules that's about 1.2 TB, so we gave the build its own 2 TB volume.
-2. **Many cores hit limits you don't normally see.** With hundreds of Lean processes running in parallel, the default open-file limit ran out. We now raise `ulimit -n` to 1M, in the script and on the systemd unit.
-3. **Don't pin one instance type.** Spot capacity for 192-vCPU machines comes and goes by AZ. Falling back through a ranked list of types and AZs beats waiting for one specific type to free up.
-4. **Create the volume after the instance.** EBS volumes are tied to one AZ. Creating the volume once we know where the instance landed avoids AZ mismatches. Finding the disk by size, rather than by NVMe device name, made mounting reliable.
-5. **Check your Spot vCPU quota first.** The default quota can be lower than one large instance needs, so the script checks it before launching.
-6. **"It compiles" isn't "it's proven".** The kernel only vouches for what's in the code. The axiom check and a human reading of the main theorem statements are what make a passing build meaningful.
+1. **Size the disk from a trial run.** A short run produced about 7 MB of build output per module. Across 175,187 modules, that's roughly 1.2 TB, so I chose a 2 TB volume.
+2. **Raise the open-file limit.** Hundreds of parallel Lean processes exhausted the default per-process file-descriptor limit. In [`verify.sh`](../verify.sh), I use:
 
-## 📡 Stay tuned!
+   ```bash
+   ulimit -n 1048576
+   ```
 
-The build is still running, so we can't say yet whether Lean accepts the proof. When it finishes, we'll share the result, the axiom report and the final AWS bill. Stay tuned!
+   If that fails, the script falls back to the current hard limit with `ulimit -n "$(ulimit -Hn)"`. The build runs as a transient systemd service, so I also set its limit explicitly:
+
+   ```bash
+   systemd-run --unit=riemann-verify -p LimitNOFILE=1048576 /opt/run.sh
+   ```
+
+3. **Don't pin one instance type.** Spot capacity for 192-vCPU machines varies by type and AZ. I try a ranked list of alternatives rather than waiting for one specific type to become available.
+4. **Create the volume after the instance.** EBS volumes are tied to one AZ. I wait until I know where the instance landed before creating the volume there. I also locate the disk by size rather than relying on an NVMe device name.
+5. **Check the Spot vCPU quota first.** The default quota can be lower than one large instance needs. My launch script checks it before trying to launch.
+6. **"It compiles" isn't "it's proven".** A `sorry` or custom axiom can compile too. I also need to inspect the axioms and make sure the formalized statement is actually the Riemann Hypothesis I intend to check. My script handles the axiom audit, but it doesn't compare the theorem statement with Mathlib's accepted definition.
+
+## 📡 What's next
+
+Other people have already reported clean builds. I'm not claiming RH has been proved on the strength of my run. A successful kernel check would be a milestone in my independent check, not a reason to skip mathematical scrutiny.
+
+**Update (21 November 2026):** The Lean and Mathlib communities have published a [joint statement](https://leanprover-community.github.io/blog/posts/riemann-hypothesis/), endorsed by the Lean FRO and the Mathlib Initiative, saying they have "full confidence that Alpöge's proof of the Riemann Hypothesis is correct". They report comparing the proved theorem with Mathlib's RH statement and checking the exported proof with several independent proof checkers. That's broader evidence than my build alone can provide.
+
+When my run finishes, I'll add the build result, axiom report, and final AWS costs here.
