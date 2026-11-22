@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riemann Hypothesis in Lean: an independent build</title>
+<meta name="description" content="An independent from-scratch build and axiom check of Levent Alpöge and Claude's Lean 4 formalization of the Riemann Hypothesis, with logs, hashes and build statistics.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Riemann Hypothesis in Lean: an independent build</h1>
+  <p class="meta">
+    <a href="https://github.com/JGalego/riemann">github.com/JGalego/riemann</a> ·
+    Run of 21–22 November 2026 · Page last updated 22 November 2026
+  </p>
+  <p>
+    On 20 November 2026, Levent Alpöge <a href="https://alpo.ge/remark.pdf">announced a proof</a> of the
+    Riemann Hypothesis found together with Claude, along with a Lean 4 formalization.
+    This page reports an independent build of that formalization from scratch on a single AWS spot instance:
+    every module compiled, and the main theorems use no axioms beyond Lean's standard three.
+    All logs, scripts and hashes are below, so you can check the claims against the evidence, or run the build yourself.
+  </p>
+  <nav class="toc">
+    <a href="#summary">Summary</a>
+    <a href="#statements">What was verified</a>
+    <a href="#proof">How the proof works</a>
+    <a href="#build">Build statistics</a>
+    <a href="#downloads">Downloads</a>
+    <a href="#reproduce">Check it yourself</a>
+    <a href="#provenance">Provenance</a>
+    <a href="#caveats">Caveats</a>
+    <a href="#references">References</a>
+  </nav>
+</header>
+
+<figure>
+  <img class="hero" src="domain-coloring.gif" alt="Domain coloring of the completed zeta function ξ(s): one spinning pinwheel per zero, all on the critical line" loading="lazy">
+  <figcaption>The completed zeta function ξ(s) over 0 ≤ Im(s) ≤ 60, colored by phase. Each pinwheel is a zero of ζ, and every one shown sits on Re(s) = ½.</figcaption>
+</figure>
+
+<section id="summary">
+<h2>Summary</h2>
+<p>
+  The archive from alpo.ge was checked against its published hash, built with <code>lake build</code>
+  (175,187 modules, 0 errors), and the five main theorems were checked with <code>#print axioms</code>.
+  Everything that was run passed. Checks that this run did <em>not</em> do are listed too, with pointers to others who have done them.
+</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Archive integrity</td>
+      <td><span class="status pass">✓ pass</span></td>
+      <td>sha256 of the merged <code>lean.tar.gz</code> matches <span class="hash">9631b4f0…49c7fc</span>. Hashes of all 14 parts are under <a href="#downloads">Downloads</a>.</td>
+    </tr>
+    <tr>
+      <td>Full build</td>
+      <td><span class="status pass">✓ pass</span></td>
+      <td>All 175,187 modules built with 0 errors (460,321 warnings, mostly linter suggestions) in 21 h 19 m.
+        <a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/build.log.gz">build.log.gz</a></td>
+    </tr>
+    <tr>
+      <td>Axioms</td>
+      <td><span class="status pass">✓ pass</span></td>
+      <td>All five main theorems depend only on <a href="https://lean-lang.org/theorem_proving_in_lean4/Axioms-and-Computation/">Lean's standard axioms</a> (<code>propext</code>, <code>Classical.choice</code>, <code>Quot.sound</code>): no <code>sorry</code>, no added axioms.
+        <a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/axioms.log">axioms.log</a></td>
+    </tr>
+    <tr>
+      <td>Statement is Mathlib's</td>
+      <td><span class="status pass">✓ by inspection</span></td>
+      <td><code>riemannHypothesis</code> proves Mathlib's own <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/RiemannZeta.html#RiemannHypothesis"><code>RiemannHypothesis</code></a>, not a local definition.
+        <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Main.lean">Main.lean</a></td>
+    </tr>
+    <tr>
+      <td>Comparator check</td>
+      <td><span class="status none">– not run here</span></td>
+      <td>Done by the Lean community: <a href="https://github.com/leanprover-community/riemann-hypothesis">leanprover-community/riemann-hypothesis</a>.</td>
+    </tr>
+    <tr>
+      <td>Kernel replay with independent checkers</td>
+      <td><span class="status none">– not run here</span></td>
+      <td>Done by Andrew Sutherland: <a href="https://math.mit.edu/~drew/grh/">math.mit.edu/~drew/grh</a>.</td>
+    </tr>
+    <tr>
+      <td>Human-readable write-up</td>
+      <td><span class="status pending">… pending</span></td>
+      <td>The author describes the announcement as a rough timeline; a full write-up is still to come.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="statements">
+<h2>What was verified</h2>
+<p>The five theorems in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Main.lean"><code>Main.lean</code></a>:</p>
+<pre><code class="language-lean">theorem riemannHypothesis : RiemannHypothesis := rhOfAll
+theorem riemannZeta_eq_zero_re : RiemannZetaZerosOnLine := rhOfAll
+theorem LFunction_ne_zero_of_half_lt_re : DirichletLNonvanishingRightOfHalf := allChi
+theorem LFunction_eq_zero_re : DirichletLZerosOnLine := claimAll.2.1
+theorem LFunction_eq_zero_re_of_isPrimitive : PrimitiveDirichletLZerosOnLine := critAll</code></pre>
+
+<p><strong>1. The Riemann Hypothesis</strong>, as defined in Mathlib (<code>Mathlib/NumberTheory/LSeries/RiemannZeta.lean</code>):</p>
+<pre><code class="language-lean">def RiemannHypothesis : Prop :=
+  ∀ (s : ℂ) (_ : riemannZeta s = 0) (_ : ¬∃ n : ℕ, s = -2 * (n + 1)) (_ : s ≠ 1), s.re = 1 / 2</code></pre>
+
+<p><strong>2–5. The same for ζ and for Dirichlet L-functions</strong>, defined in the project's
+<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Statements.lean"><code>Statements.lean</code></a>:</p>
+<pre><code class="language-lean">def RiemannZetaZerosOnLine : Prop :=
+  ∀ s : ℂ, riemannZeta s = 0 → (¬∃ n : ℕ, s = -2 * ((n : ℂ) + 1)) → s ≠ 1 → s.re = 1 / 2
+
+def DirichletLNonvanishingRightOfHalf : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    1 / 2 &lt; s.re → (χ ≠ 1 ∨ s ≠ 1) → DirichletCharacter.LFunction χ s ≠ 0
+
+def DirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2
+
+def PrimitiveDirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N), χ.IsPrimitive →
+    ∀ s : ℂ, 0 &lt; s.re → s.re &lt; 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2</code></pre>
+
+<p>
+  <strong>Scope.</strong> "GRH" here means the Generalized Riemann Hypothesis for Dirichlet L-functions only,
+  not for L-functions of number fields or automorphic forms in general. Statements 2–5 use the project's own
+  definitions, which build on Mathlib's <code>riemannZeta</code> and <code>DirichletCharacter.LFunction</code>; statement 1 uses Mathlib's definition directly.
+</p>
+
+<p>The axiom check (<a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/CheckAxioms.lean">CheckAxioms.lean</a>) and its output:</p>
+<pre><code>'riemannHypothesis' depends on axioms: [propext, Classical.choice, Quot.sound]
+'riemannZeta_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_ne_zero_of_half_lt_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re' depends on axioms: [propext, Classical.choice, Quot.sound]
+'LFunction_eq_zero_re_of_isPrimitive' depends on axioms: [propext, Classical.choice, Quot.sound]</code></pre>
+</section>
+
+<section id="proof">
+<h2>How the proof works</h2>
+<p>This is a plain-language sketch, drawn from the top of the Lean code and from the <a href="https://alpo.ge/remark.pdf">announcement</a>. The first two steps can be read straight off the code. The third follows the announcement, which the author describes as a rough timeline rather than a write-up, so treat it as a map, not an explanation. For a more detailed tour, see the <a href="https://nasqret.github.io/riemann-rev/guide/proof-guide.pdf">guide to its architecture</a>.</p>
+
+<figure>
+  <img src="zeta.gif" alt="The path of ζ(½ + it) winding through the origin at each nontrivial zero, with each zero lighting up on the critical line" loading="lazy">
+  <figcaption>The path of ζ(½ + it) for 0 ≤ t ≤ 52. Every time it passes through 0, there is a zero of ζ on the critical line. The Riemann Hypothesis says <em>all</em> the nontrivial zeros are there.</figcaption>
+</figure>
+
+<p><strong>1. Only the right half needs checking.</strong> The zeros of <a href="https://en.wikipedia.org/wiki/Riemann_zeta_function">ζ</a> are mirror-symmetric about the line Re(s) = ½: a zero to the left of the line would have a twin to the right. So "every zero is on the line" is the same as "there are no zeros to the right of it". <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L5"><code>RhOfRight.lean</code></a> proves this in about 60 lines from ζ's <a href="https://en.wikipedia.org/wiki/Functional_equation_(L-function)">functional equation</a>, which goes back to <a href="https://en.wikipedia.org/wiki/On_the_Number_of_Primes_Less_Than_a_Given_Magnitude">Riemann's 1859 paper</a> (<a href="https://www.claymath.org/wp-content/uploads/2023/04/Wilkins-translation.pdf">English translation</a>) and is Mathlib's <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/RiemannZeta.html#riemannZeta_one_sub"><code>riemannZeta_one_sub</code></a> (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L28">used here</a>). <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L11-L27"><code>CritLine.lean</code></a> does the same for <a href="https://en.wikipedia.org/wiki/Dirichlet_L-function">Dirichlet L-functions</a> (Mathlib's <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction"><code>DirichletCharacter.LFunction</code></a>), using their functional equation <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.IsPrimitive.completedLFunction_one_sub"><code>completedLFunction_one_sub</code></a> (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L22">used here</a>). ζ is the simplest Dirichlet L-function, the character mod 1 (<a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction_modOne_eq"><code>LFunction_modOne_eq</code></a>), so the Riemann Hypothesis drops out as a special case of the generalized one (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L29-L32"><code>rh_of_every</code></a>).</p>
+<p><strong>2. Everything else proves one statement.</strong> The remaining ~175,000 files prove <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AutomorphicArithmetic/CharacterBoxes/EveryCharacter.lean#L13-L14"><code>EveryCharacter</code></a>: no Dirichlet L-function has a zero with real part greater than ½. That is the <a href="https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis">Generalized Riemann Hypothesis</a>, and it is where the new mathematics lives. The main theorems in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Main.lean#L4-L12"><code>Main.lean</code></a> cover ζ, every Dirichlet L-function and the primitive ones, with the statements spelled out in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Statements.lean#L3-L16"><code>Statements.lean</code></a>.</p>
+<p><strong>3. The idea: borrow a trick from finite fields.</strong> The finite-field analogue of the Riemann Hypothesis is part of the <a href="https://en.wikipedia.org/wiki/Weil_conjectures">Weil conjectures</a>, proved by Weil for curves (see his <a href="https://doi.org/10.1090/S0002-9904-1949-09219-4">1949 paper</a>) and by <a href="https://www.numdam.org/item/PMIHES_1974__43__273_0/">Deligne</a> in general. Stepanov found an elementary proof for curves (see <a href="https://www.numdam.org/item/SB_1972-1973__15__234_0/">Bombieri's Bourbaki exposé</a> and <a href="https://doi.org/10.1007/BFb0080437">Schmidt's book</a>). He builds an auxiliary polynomial that vanishes to high order at every point being counted, and that multiplicity forces the count to be close to its expected value. Whole numbers have no notion of vanishing to high order ("something like differentiating whole numbers", as the announcement puts it).</p>
+<p>The new ingredient is to fake multiplicity with <em>chains of <a href="https://en.wikipedia.org/wiki/Theta_correspondence">theta lifts</a></em> (see <a href="https://doi.org/10.1090/S0894-0347-1989-0985172-6">Howe</a> and <a href="https://www.numdam.org/item/CM_1984__51_3_333_0/">Rallis</a>). These carry <a href="https://en.wikipedia.org/wiki/Automorphic_form">automorphic forms</a> from one <a href="https://en.wikipedia.org/wiki/Unitary_group">unitary group</a> to a larger one, step by step. In Lean, a chain is the inductive <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AbelianVarietyTheory/BlockTheory/TwistedDiscreteSeries/IteratedLiftChains.lean#L91-L99"><code>IsIterLift</code></a>, where each step integrates against a theta kernel. Each lift plays the role of one more order of vanishing. For a sum over primes up to X, weighted by the <a href="https://en.wikipedia.org/wiki/Von_Mangoldt_function">von Mangoldt function</a>, the chain is about √X lifts long.</p>
+<p>A positivity argument built on the <a href="https://en.wikipedia.org/wiki/Explicit_formulae_for_L-functions">Guinand–Weil explicit formula</a> (<a href="https://doi.org/10.1112/plms/s2-50.2.107">Guinand 1948</a>) then turns this into "no zeros to the right of ½". The explicit formula for Dirichlet characters appears in Lean as <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AbelianVarietyTheory/Proofs/GlobalInterpolation/ExplicitFormulaClosedStatement.lean#L12"><code>norm_psi0_add_zsum_le</code></a>.</p>
+<p>The full argument also uses:</p>
+<ul>
+  <li><a href="https://en.wikipedia.org/wiki/Iwasawa_theory">Iwasawa towers</a> (<a href="https://doi.org/10.1090/S0002-9904-1959-10317-7">Iwasawa 1959</a>)</li>
+  <li>Bost's slope inequality, from <a href="https://en.wikipedia.org/wiki/Arakelov_theory">Arakelov theory</a> (see <a href="https://www.numdam.org/item/SB_1994-1995__37__115_0/">Bost's Bourbaki exposé</a>)</li>
+  <li>a <a href="https://en.wikipedia.org/wiki/Relative_trace_formula">relative trace formula</a></li>
+  <li>Bessel periods, from the <a href="https://en.wikipedia.org/wiki/Gan%E2%80%93Gross%E2%80%93Prasad_conjecture">Gan–Gross–Prasad conjecture</a> (<a href="https://arxiv.org/abs/0909.2999">Gan, Gross and Prasad</a>). In Lean, the Bessel period of a theta lift is computed in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AbelianVarietyTheory/Proofs/DecoratedLatticeProofs/BesselPeriodThetaLiftEqIntegralKernelStatement.lean#L13"><code>besselPeriod_thetaLift_eq_integral_kernel</code></a>, with seesaw identities such as <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AbelianVarietyTheory/Proofs/DecoratedLatticeProofs/SeesawFubiniTwoLiftsModerateGrowthKernelsStatement.lean#L15"><code>seesaw_fubini_two_lifts_moderate_growth_kernels</code></a></li>
+  <li>a weakened form of <a href="https://en.wikipedia.org/wiki/Kummer%E2%80%93Vandiver_conjecture">Vandiver's conjecture</a></li>
+  <li><a href="https://en.wikipedia.org/wiki/Salem%E2%80%93Spencer_set">Behrend sets</a> (<a href="https://doi.org/10.1073/pnas.32.12.331">Behrend 1946</a>), stated in Lean as <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/BehrendSets/Statement.lean#L48-L56"><code>BehrendFree</code> and <code>BehrendBound</code></a></li>
+</ul>
+<p>Lean names don't map one-to-one onto these ideas, so Lean links are given only where a file clearly matches.</p>
+<p>The <a href="#build">build statistics</a> agree. Of about 4,000 CPU-hours of compilation, 58% went to <a href="https://en.wikipedia.org/wiki/Abelian_variety">abelian variety</a> and <a href="https://en.wikipedia.org/wiki/Complex_multiplication">CM</a> theory (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AbelianVarietyTheory"><code>Development/AbelianVarietyTheory</code></a>), 15% to automorphic arithmetic, including the theta correspondence (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicArithmetic"><code>Development/AutomorphicArithmetic</code></a>), and 8% to the automorphic spectrum (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicSpectrum"><code>Development/AutomorphicSpectrum</code></a>). The slowest single module, at 22 minutes, is <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AutomorphicArithmetic/ThetaCorrespondence/ThetaPairLifts/ThirdPlaceSeries/SiegelEisensteinSecondTermHypotheses.lean">a theta-correspondence file</a> about <a href="https://en.wikipedia.org/wiki/Siegel_Eisenstein_series">Siegel–Eisenstein series</a> (see also the <a href="https://en.wikipedia.org/wiki/Siegel%E2%80%93Weil_formula">Siegel–Weil formula</a> and <a href="https://doi.org/10.1007/BF02391774">Weil 1965</a>).</p>
+</section>
+
+<section id="build">
+<h2>Build statistics</h2>
+<p>
+  The build ran on a c6a.48xlarge spot instance (192 vCPU, 384 GiB) in eu-west-1 from
+  21 Nov 19:07 UTC to 22 Nov 16:26 UTC, with no spot interruptions. It used about 4,000 CPU-hours,
+  peaked at 33 GB of memory, wrote 94.6 GB of <code>.olean</code> files and cost about $74 in spot time.
+</p>
+
+<h3>Modules built over time</h3>
+<div class="chart" id="build-chart"></div>
+<p class="meta">Cumulative count in 5-minute buckets, from <a href="data/timeseries.csv">timeseries.csv</a>. Hover for per-bucket detail.</p>
+
+<h3>Where the CPU time went</h3>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Part of the library</th><th class="num">Modules</th><th class="num">CPU-hours</th><th class="num">Share</th><th class="bar-cell" aria-hidden="true"></th></tr></thead>
+  <tbody>
+    <tr><td>Development.AbelianVarietyTheory</td><td class="num">99,187</td><td class="num">2,328.5</td><td class="num">58.1%</td><td class="bar-cell"><div class="bar" style="width:100%"></div></td></tr>
+    <tr><td>Development.AutomorphicArithmetic</td><td class="num">18,431</td><td class="num">614.0</td><td class="num">15.3%</td><td class="bar-cell"><div class="bar" style="width:26.4%"></div></td></tr>
+    <tr><td>Development.AutomorphicSpectrum</td><td class="num">15,147</td><td class="num">306.6</td><td class="num">7.6%</td><td class="bar-cell"><div class="bar" style="width:13.2%"></div></td></tr>
+    <tr><td>Development.WeilBound</td><td class="num">7,051</td><td class="num">161.5</td><td class="num">4.0%</td><td class="bar-cell"><div class="bar" style="width:6.9%"></div></td></tr>
+    <tr><td>GroundTheory.HeightsAndTheta</td><td class="num">6,410</td><td class="num">111.2</td><td class="num">2.8%</td><td class="bar-cell"><div class="bar" style="width:4.8%"></div></td></tr>
+    <tr><td>Formalism.LocalToGlobal</td><td class="num">5,501</td><td class="num">97.6</td><td class="num">2.4%</td><td class="bar-cell"><div class="bar" style="width:4.2%"></div></td></tr>
+    <tr><td>Formalism.PeriodIntegrals</td><td class="num">4,350</td><td class="num">68.3</td><td class="num">1.7%</td><td class="bar-cell"><div class="bar" style="width:2.9%"></div></td></tr>
+    <tr><td>Formalism.SharpRestriction</td><td class="num">3,093</td><td class="num">50.4</td><td class="num">1.3%</td><td class="bar-cell"><div class="bar" style="width:2.2%"></div></td></tr>
+    <tr><td>ReciprocityTheory.ReductiveGroups</td><td class="num">2,799</td><td class="num">43.0</td><td class="num">1.1%</td><td class="bar-cell"><div class="bar" style="width:1.8%"></div></td></tr>
+    <tr><td>Formalism.HermitianCurvature</td><td class="num">1,922</td><td class="num">32.0</td><td class="num">0.8%</td><td class="bar-cell"><div class="bar" style="width:1.4%"></div></td></tr>
+    <tr><td>Everything else</td><td class="num">11,296</td><td class="num">196.1</td><td class="num">4.9%</td><td class="bar-cell"><div class="bar" style="width:8.4%"></div></td></tr>
+    <tr><td><strong>Total</strong></td><td class="num"><strong>175,187</strong></td><td class="num"><strong>4,009.2</strong></td><td class="num"></td><td></td></tr>
+  </tbody>
+</table>
+</div>
+<p>The slowest modules, all theta-correspondence or abelian-variety files:</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Module</th><th class="num">Compile time</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">…ThetaPairLifts.ThirdPlaceSeries.SiegelEisensteinSecondTermHypotheses</td><td class="num">22 m 23 s</td></tr>
+    <tr><td class="mono">…ThetaCorrespondence.FockModels.EveryCharacterE</td><td class="num">17 m 15 s</td></tr>
+    <tr><td class="mono">…IwasawaDecomposition.ChartTiedLevelChain</td><td class="num">14 m 43 s</td></tr>
+    <tr><td class="mono">…InertiaEigenvalues.LanglandsQuotientOfSpehTypeProductIsL</td><td class="num">14 m 33 s</td></tr>
+    <tr><td class="mono">…DivisorProofs.OpenFirstParametersOfPrintsUEStatement</td><td class="num">13 m 59 s</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Per-module data for all 175,187 modules is in <a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/modules.csv.gz">modules.csv.gz</a>, and charts of CPU, memory, I/O and cost are in <a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/report.html">report.html</a>.</p>
+
+<figure>
+  <img src="tui.gif" alt="Terminal dashboard showing build progress, busy cores and cost on the c6a.48xlarge" loading="lazy">
+  <figcaption>The live dashboard (<code>aws/tui.py</code>) that tracked the build.</figcaption>
+</figure>
+</section>
+
+<section id="downloads">
+<h2>Downloads</h2>
+<h3>Source archive</h3>
+<p>
+  The formalization as published at <a href="https://alpo.ge">alpo.ge</a>: 14 parts that concatenate to <code>lean.tar.gz</code>
+  (239,275,554 bytes). Compare your downloads with these hashes.
+</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>File</th><th class="num">Bytes</th><th>sha256</th></tr></thead>
+  <tbody>
+    <tr><td><strong>lean.tar.gz</strong> (merged)</td><td class="num">239,275,554</td><td class="hash">9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part01">lean.tar.gz.part01</a></td><td class="num">18,000,000</td><td class="hash">86974b1c242ca7b6748f3299df4fc64ee0f6e06c776ac964fb64888101a3de77</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part02">lean.tar.gz.part02</a></td><td class="num">18,000,000</td><td class="hash">1c2a2477354a9dfa97ff1ce54861e96ed885bd456fffbaaabc2028314a229c42</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part03">lean.tar.gz.part03</a></td><td class="num">18,000,000</td><td class="hash">1465a23b1b579a881e24e5ffaf7c4c3727af28ea24741f1ec80e1d67947530a3</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part04">lean.tar.gz.part04</a></td><td class="num">18,000,000</td><td class="hash">3929e327eecb4e2c5c7cae30e104e6a4a52fa6b82d28325bcda8e9da1c86893b</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part05">lean.tar.gz.part05</a></td><td class="num">18,000,000</td><td class="hash">f25d7e80f7c4ad6d674aa18b323ca760f848857c8755501c149317c38a66c75d</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part06">lean.tar.gz.part06</a></td><td class="num">18,000,000</td><td class="hash">a8c651a68327811b37dce3cca8eda5e0b2102fa227c0d395cbb7553e4dd69939</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part07">lean.tar.gz.part07</a></td><td class="num">18,000,000</td><td class="hash">65c7e502a9b236a0f68d9e0aa6e089d4c09b9fc7a0960a149384063ccbe5e869</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part08">lean.tar.gz.part08</a></td><td class="num">18,000,000</td><td class="hash">71b027ad6e4179c3a50ce72921e3fec0a2dd751ec7472ac2c644ad145a50ec7e</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part09">lean.tar.gz.part09</a></td><td class="num">18,000,000</td><td class="hash">47718977ebaa8613f1647e93134479780db9320c5fa911463fd312a6257b796f</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part10">lean.tar.gz.part10</a></td><td class="num">18,000,000</td><td class="hash">1d85ece78e0779cec26b0cce29c6462d9f90180e56d78120b152df101715240b</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part11">lean.tar.gz.part11</a></td><td class="num">18,000,000</td><td class="hash">cf83a159d1a9540012229c376562587dd966da10cd657cbcef53acfd03232448</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part12">lean.tar.gz.part12</a></td><td class="num">18,000,000</td><td class="hash">1aa5415bd2db83b2689afeeb946419303b3c4f599ae790ad74d38465f768b502</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part13">lean.tar.gz.part13</a></td><td class="num">18,000,000</td><td class="hash">2de4edbce8ebdbfd0b94bc89bab518c7294209f408ec5b14a7be9e4832d9da81</td></tr>
+    <tr><td><a href="https://alpo.ge/lean.tar.gz.part14">lean.tar.gz.part14</a></td><td class="num">5,275,554</td><td class="hash">53f8ea43a9b5dcab97b84a52f3ac2848711c844a5420a4c56418093bacb3c6f6</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Verification run</h3>
+<p>From the <a href="https://github.com/JGalego/riemann/releases/tag/verification-2026-11-22">verification-2026-11-22</a> release. <a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/SHA256SUMS">SHA256SUMS</a> lists every file.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>File</th><th class="num">Size</th><th>What it is</th><th>sha256</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/STATUS">STATUS</a></td><td class="num">3 B</td><td>final status written by verify.sh (<code>ok</code>)</td><td class="hash">dc51b8c96c2d745df3bd5590d990230a482fd247123599548e0632fdbf97fc22</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/axioms.log">axioms.log</a></td><td class="num">435 B</td><td><code>#print axioms</code> output</td><td class="hash">2c7b168860c39a4b4afd417a327bbbd8a2a0615372655c5d4bd329fb06e7f3d5</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/CheckAxioms.lean">CheckAxioms.lean</a></td><td class="num">212 B</td><td>the axiom check</td><td class="hash">22670ef4959d77534f6a1356ceff360cd16283160bb2d3b684214f7a904e99fb</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/verify.sh">verify.sh</a></td><td class="num">4.1 kB</td><td>the script that ran</td><td class="hash">35db07bc238598c2c7b6004fad4ff061c23b61e9545151ff95f342c455757ede</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/build.log.gz">build.log.gz</a></td><td class="num">13.4 MB</td><td>Lake build log: every module, compile time, warnings</td><td class="hash">cf4ba8f69feac42f90855b5a6d497cc7d6f22f935089e3e2cbae2d9ecc4d2151</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/verify.out.gz">verify.out.gz</a></td><td class="num">13.4 MB</td><td>full output of verify.sh</td><td class="hash">aea7c81c3172d047eccc0b96b705ff19f042e1e0ee4a72e141f9ba4c7d1758cb</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/modules.csv.gz">modules.csv.gz</a></td><td class="num">4.1 MB</td><td>one row per module: finish time, compile time, .olean size, warnings</td><td class="hash">286656209c62d460ba4501909820d489ed759d4f58ff1f75964ea90d829cf1b0</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/timeseries.csv">timeseries.csv</a></td><td class="num">23.8 kB</td><td>5-minute buckets: modules, cores, memory, I/O, cost</td><td class="hash">1fc5092e9c3b6cf698742e828fa989d6871a1ffa416d9c955262a0f6dc5d12c5</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/report.html">report.html</a></td><td class="num">2.1 MB</td><td>charts and tables of the above</td><td class="hash">749d8a697a9203001c6513362994cc289e9e9cc510c73607b6a421bd2cfeda19</td></tr>
+    <tr><td><a href="https://github.com/JGalego/riemann/releases/download/verification-2026-11-22/raw-metrics.tar.gz">raw-metrics.tar.gz</a></td><td class="num">5.0 MB</td><td>sysstat history, CloudWatch metrics, spot prices, .olean listing</td><td class="hash">ea83b72552462d33339d7f2411dd74a375c0baf29bd512a830a3193c76598961</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="reproduce">
+<h2>Check it yourself</h2>
+<p>Check the archive (about 240 MB, a few minutes):</p>
+<pre><code>git clone https://github.com/JGalego/riemann && cd riemann
+./fetch_merge.sh                      # download, merge and unpack into ./lean
+sha256sum download/lean.tar.gz        # expect 9631b4f0…49c7fc</code></pre>
+<p>Build from scratch and check the axioms. This needs many cores and about 1.5 TB of disk; on 192 vCPUs it took 21 hours:</p>
+<pre><code>WORK=$HOME/riemann-work \
+EXPECTED_SHA256=9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc \
+bash verify.sh                        # writes $WORK/STATUS, build.log, axioms.log</code></pre>
+<p>Or run it on an EC2 spot instance that resumes after interruptions:</p>
+<pre><code>aws/launch.sh          # launch (or resume) the instance
+aws/watch.sh           # relaunch after interruptions, fetch logs, clean up when done
+python3 aws/tui.py     # live dashboard</code></pre>
+<p>See the <a href="https://github.com/JGalego/riemann#getting-started">README</a> for prerequisites and details.</p>
+</section>
+
+<section id="provenance">
+<h2>Provenance</h2>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Item</th><th>Value</th></tr></thead>
+  <tbody>
+    <tr><td>Source archive</td><td><code>lean.tar.gz</code> from alpo.ge, sha256 <span class="hash">9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc</span></td></tr>
+    <tr><td>Lean</td><td>4.33.1, commit <span class="hash">819816b2e0a3bf405af45ae5c7af2491d8f5bee6</span> (x86_64-unknown-linux-gnu, Release)</td></tr>
+    <tr><td>Lake</td><td>5.0.0-src+819816b</td></tr>
+    <tr><td>Mathlib</td><td>commit <span class="hash">0df444a360eaa60ab8c11dca51a86af692955474</span>, prebuilt oleans from <code>lake exe cache get</code></td></tr>
+    <tr><td>Machine</td><td>c6a.48xlarge (192 vCPU, 384 GiB), eu-west-1c, spot at $3.19–3.22/h</td></tr>
+    <tr><td>Build</td><td>2026-11-21 19:07 UTC to 2026-11-22 16:26 UTC (76,763 s)</td></tr>
+    <tr><td>Axiom check</td><td>2026-11-22 16:26:48 to 16:27:59 UTC</td></tr>
+    <tr><td>Output</td><td>1.2 TB build directory, 94.6 GB of .olean files; 460,321 warnings, 0 errors</td></tr>
+    <tr><td>Script</td><td><a href="https://github.com/JGalego/riemann/blob/main/verify.sh">verify.sh</a>, sha256 <span class="hash">35db07bc238598c2c7b6004fad4ff061c23b61e9545151ff95f342c455757ede</span></td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<section id="caveats">
+<h2>Caveats</h2>
+<ul class="caveats">
+  <li><strong>Lean checks logic, not meaning.</strong> A clean build shows the proof is valid for the statements as written in Lean. Whether those statements say what we mean by "the Riemann Hypothesis" rests on Mathlib's definitions of <code>riemannZeta</code> and <code>RiemannHypothesis</code>, which are widely used and reviewed.</li>
+  <li><strong>This run trusts Lean's own kernel.</strong> The build uses the standard Lean 4 kernel only. Replaying the proof terms with independent checkers was done elsewhere (<a href="https://math.mit.edu/~drew/grh/">Sutherland</a>), not here.</li>
+  <li><strong>Mathlib came from the cache.</strong> Mathlib's oleans were downloaded with <code>lake exe cache get</code>, not rebuilt. The project's own 175,187 modules were all built from source.</li>
+  <li><strong>The run had two instances.</strong> The archive hash was checked by verify.sh on a first instance, which then stopped on an open-file limit while fetching the Mathlib cache, and its log was lost with it. The build resumed from the same data volume on the instance whose logs are published here. The hash above was recomputed from a separate download.</li>
+  <li><strong>Warnings are not errors.</strong> The 460,321 warnings are mostly linter output ("Try this", unused tactics, overlapping instance parameters). None of them affects soundness, but they show the code was machine-generated and not cleaned up.</li>
+  <li><strong>Not peer reviewed.</strong> A formal proof this long (about 175,000 files) is not yet something a human can read. The author has said a proper write-up is still to come.</li>
+</ul>
+</section>
+
+<section id="references">
+<h2>References</h2>
+<ul class="refs">
+  <li>Levent Alpöge, <a href="https://alpo.ge/remark.pdf"><em>Remark</em></a> (2026-11-20). The announcement, with links to the Lean archive.</li>
+  <li>Lean and Mathlib communities, <a href="https://leanprover-community.github.io/blog/posts/riemann-hypothesis/"><em>Lean verification of the Riemann Hypothesis</em></a> (2026-11-21). Joint statement certifying the statement and the proof.</li>
+  <li>Andrew Sutherland, <a href="https://math.mit.edu/~drew/grh/"><em>RH Lean proof: verification files</em></a>. Independent build, axiom checks and kernel replays; the model for this page.</li>
+  <li><a href="https://github.com/leanprover-community/riemann-hypothesis">leanprover-community/riemann-hypothesis</a>. The Comparator setup that checks the theorem against Mathlib's <code>RiemannHypothesis</code>.</li>
+  <li>Kevin Buzzard, <a href="https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/"><em>"…and the proof is checked in Lean"</em></a>. Criteria for trusting a Lean proof.</li>
+  <li><a href="https://nasqret.github.io/riemann-rev/guide/proof-guide.pdf"><em>A guide to its architecture</em></a>. An 11-page map of the proof with links into the Lean archive.</li>
+  <li>João Galego, <a href="https://builder.aws.com/content/3MQgDMMW6Kg6qZSjR9ozgcsogAv/did-claude-prove-the-riemann-hypothesis-lets-ask-a-spot-instance"><em>Did Claude Prove the Riemann Hypothesis? Let's Ask a Spot Instance</em></a> (AWS Builder Center). The story of this run.</li>
+</ul>
+<p>More news, videos and discussion are collected in the <a href="https://github.com/JGalego/riemann#references">README</a>.</p>
+</section>
+
+<footer>
+  Scripts, tooling and this page are MIT-licensed. The Lean formalization is the work of Levent Alpöge and Claude and remains subject to its authors' terms.
+  <a href="https://github.com/JGalego/riemann">Source on GitHub</a>.
+</footer>
+
+</main>
+<script src="lean-highlight.js" defer></script>
+<script src="build-chart.js" defer></script>
+</body>
+</html>
