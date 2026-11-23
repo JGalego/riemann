@@ -8,8 +8,8 @@
   --link: #1f5fae;
   --accent: #2a78d6;
   --pass: #008300;
-  --none: #8a8984;
-  --pending: #b07400;
+  --none: #6b6a65;
+  --pending: #8e5c00;
   --grid: #e8e7e2;
 }
 @media (prefers-color-scheme: dark) {
@@ -49,6 +49,7 @@ h2 {
 }
 h3 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
 .meta { color: var(--muted); font-size: 0.9rem; }
+p, li { overflow-wrap: anywhere; }
 nav.toc { font-size: 0.9rem; margin: 1rem 0 0; }
 nav.toc a { margin-right: 0.9rem; white-space: nowrap; }
 

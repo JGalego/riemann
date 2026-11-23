@@ -9,3 +9,4 @@ aws/watch.log
 aws/.cm-*
 __pycache__/
 docs/tui.mp4
+aws/render.env

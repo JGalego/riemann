@@ -16,6 +16,9 @@
 #   - once the build finishes, the instance shuts down GRACE_MIN minutes later;
 #   - aws/watch.sh fetches the results, terminates the instance and deletes the volume.
 #
+# JOB=shell launches an instance that only mounts the data volume (no build), and
+# shuts itself down after SHELL_HOURS (default 3); aws/animate.sh uses it.
+#
 # Usage: aws/launch.sh            (then: aws/watch.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -27,6 +30,9 @@ VOLUME_GB=${VOLUME_GB:-2000}
 ROOT_GB=100
 MAX_HOURS=${MAX_HOURS:-36}
 GRACE_MIN=${GRACE_MIN:-120}
+JOB=${JOB:-verify}
+SHELL_HOURS=${SHELL_HOURS:-3}
+case "$JOB" in verify|shell) ;; *) echo "JOB must be verify or shell"; exit 1 ;; esac
 NAME=riemann-verify
 EXPECTED_SHA256=9631b4f020199e580ba86178cb56c6e9b09f690c2369a80dc4334aa93f49c7fc
 
@@ -48,7 +54,9 @@ if [ -n "$VOLUME_ID" ]; then
   echo "Resuming with volume $VOLUME_ID in $AZ (first launched $FIRST_LAUNCHED)"
   aws ec2 wait volume-available --volume-ids "$VOLUME_ID"
 fi
-if [ -n "$FIRST_LAUNCHED" ]; then
+if [ "$JOB" = shell ]; then
+  REMAIN_MIN=$(( SHELL_HOURS * 60 ))
+elif [ -n "$FIRST_LAUNCHED" ]; then
   REMAIN_MIN=$(( MAX_HOURS * 60 - ($(date +%s) - $(date -d "$FIRST_LAUNCHED" +%s)) / 60 ))
   [ "$REMAIN_MIN" -gt 30 ] || { echo "MAX_HOURS=$MAX_HOURS budget used up; not launching."; exit 1; }
 else
@@ -75,7 +83,8 @@ CANDIDATES=$(
   done | awk -v az="$AZ" -v max="$MAX_PRICE" '(az=="" || $2==az) && $3<=max' | sort -k5 -n
 )
 [ -n "$CANDIDATES" ] || { echo "No candidate under \$$MAX_PRICE/h${AZ:+ in $AZ}. Raise MAX_PRICE or wait."; exit 1; }
-echo "Candidates (type AZ \$/h vCPU \$/vCPU-h), ${REMAIN_MIN} min of the ${MAX_HOURS}h budget left:"
+if [ "$JOB" = shell ]; then BUDGET="shell instance, stops after ${SHELL_HOURS}h"; else BUDGET="${REMAIN_MIN} min of the ${MAX_HOURS}h budget left"; fi
+echo "Candidates (type AZ \$/h vCPU \$/vCPU-h), $BUDGET:"
 echo "$CANDIDATES"
 
 # --- Network and key ----------------------------------------------------------
@@ -157,6 +166,8 @@ RUN
 chmod +x /opt/verify.sh /opt/run.sh
 systemd-run --unit=riemann-verify -p LimitNOFILE=1048576 /opt/run.sh
 EOF
+# A shell instance stops after mounting the volume: no verify.sh, no build.
+[ "$JOB" = verify ] || sed -i '/base64 -d > \/opt\/verify.sh$/,$d' "$USERDATA"
 
 # --- Launch: first candidate with capacity ------------------------------------
 INSTANCE_ID=''
@@ -203,5 +214,9 @@ IP=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
   --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
 save_state
 rm -f known_hosts
-echo "Running at $IP with $VOLUME_ID attached. Follow with: aws/watch.sh"
+if [ "$JOB" = shell ]; then
+  echo "Shell instance at $IP with $VOLUME_ID attached; it shuts down in ${SHELL_HOURS}h."
+else
+  echo "Running at $IP with $VOLUME_ID attached. Follow with: aws/watch.sh"
+fi
 echo "(ssh: ssh -i aws/$NAME.pem ubuntu@$IP)"

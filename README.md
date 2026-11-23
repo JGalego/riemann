@@ -11,7 +11,7 @@
 
 [Riemann Hypothesis proof](https://alpo.ge/remark.pdf) formalized in Lean4 by Claude & Levent Alpöge.
 
-📝 **Blog post:** [Did Claude Prove the Riemann Hypothesis? 🤔 Let's Ask a Spot Instance](https://builder.aws.com/content/3MQgDMMW6Kg6qZSjR9ozgcsogAv/did-claude-prove-the-riemann-hypothesis-lets-ask-a-spot-instance) on AWS Builder Center ([source](blog/ask-a-spot-instance.md)): what I'm running to check the formalization on AWS, and what I've learned along the way.
+📝 **Blog post:** [Did Claude Prove the Riemann Hypothesis? 🤔 Let's Ask a Spot Instance](https://builder.aws.com/content/3MQgDMMW6Kg6qZSjR9ozgcsogAv/did-claude-prove-the-riemann-hypothesis-lets-ask-a-spot-instance) on AWS Builder Center ([source](blog/ask-a-spot-instance.md)): the source now includes my completed AWS build, axiom audit and measured cost estimate.
 
 ![Domain coloring of the Riemann ξ function: spinning pinwheels, one per zero, all lined up on the critical line](docs/domain-coloring.gif)
 
@@ -21,11 +21,40 @@
 
 On November 20th 2026, [Levent Alpöge announced a proof](https://alpo.ge/remark.pdf) of the Riemann Hypothesis found together with Claude, along with a Lean 4 formalization of the argument. The formalization is distributed as a 14-part split archive (`lean.tar.gz.part01` to `part14`) hosted at [alpo.ge](https://alpo.ge).
 
-This repository hosts the formalization, in [`lean/`](lean). A script, `fetch_merge.sh`, fetches the parts from alpo.ge, merges them and unpacks the Lean project, so you can read it and build it yourself. The claim has not been independently verified, so check it for yourself.
+This repository hosts the formalization, in [`lean/`](lean). A script, `fetch_merge.sh`, fetches the parts from alpo.ge, merges them and unpacks the Lean project, so you can read it and build it yourself. My independent run built all 175,187 project modules and audited the five main theorems' axioms. The [verification report](https://jgalego.github.io/riemann/) documents the results and the checks I did not run.
 
 ![ζ(½ + it) winds through the origin at each nontrivial zero, and each zero lights up on the critical line Re(s) = ½](docs/zeta.gif)
 
 <sub>The path of ζ(½ + it) for 0 ≤ t ≤ 52. Every time it passes through 0, there's a zero of ζ on the critical line. The Riemann Hypothesis says *all* the nontrivial zeros are there. Made with [`docs/zeta.py`](docs/zeta.py).</sub>
+
+## How the proof works
+
+This is a plain-language sketch, drawn from the top of the Lean code and from the [announcement](https://alpo.ge/remark.pdf). The first two steps can be read straight off the code. The third follows the announcement, which the author describes as a rough timeline rather than a write-up, so treat it as a map, not an explanation.
+
+**1. Only the right half needs checking.** The zeros of [ζ](https://en.wikipedia.org/wiki/Riemann_zeta_function) are mirror-symmetric about the line Re(s) = ½: a zero to the left of the line would have a twin to the right. So "every zero is on the line" is the same as "there are no zeros to the right of it". [`RhOfRight.lean`](lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L5) proves this in about 60 lines from ζ's [functional equation](https://en.wikipedia.org/wiki/Functional_equation_(L-function)), which goes back to [Riemann's 1859 paper](https://en.wikipedia.org/wiki/On_the_Number_of_Primes_Less_Than_a_Given_Magnitude) ([English translation](https://www.claymath.org/wp-content/uploads/2023/04/Wilkins-translation.pdf)) and is Mathlib's [`riemannZeta_one_sub`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/RiemannZeta.html#riemannZeta_one_sub) ([used here](lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L28)). [`CritLine.lean`](lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L11-L27) does the same for [Dirichlet L-functions](https://en.wikipedia.org/wiki/Dirichlet_L-function) (Mathlib's [`DirichletCharacter.LFunction`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction)), using their functional equation [`completedLFunction_one_sub`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.IsPrimitive.completedLFunction_one_sub) ([used here](lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L22)). ζ is the simplest Dirichlet L-function, the character mod 1 ([`LFunction_modOne_eq`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction_modOne_eq)), so the Riemann Hypothesis drops out as a special case of the generalized one ([`rh_of_every`](lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L29-L32)).
+
+**2. Everything else proves one statement.** The remaining ~175,000 files prove [`EveryCharacter`](lean/src/Development/AutomorphicArithmetic/CharacterBoxes/EveryCharacter.lean#L13-L14): no Dirichlet L-function has a zero with real part greater than ½. That is the [Generalized Riemann Hypothesis](https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis), and it is where the new mathematics lives. The main theorems in [`Main.lean`](lean/src/Main.lean#L4-L12) cover ζ, every Dirichlet L-function and the primitive ones, with the statements spelled out in [`Statements.lean`](lean/src/Statements.lean#L3-L16).
+
+**3. The idea: borrow a trick from finite fields.** The finite-field analogue of the Riemann Hypothesis is part of the [Weil conjectures](https://en.wikipedia.org/wiki/Weil_conjectures), proved by Weil for curves (see his [1949 paper](https://doi.org/10.1090/S0002-9904-1949-09219-4)) and by [Deligne](https://www.numdam.org/item/PMIHES_1974__43__273_0/) in general. Stepanov found an elementary proof for curves (see [Bombieri's Bourbaki exposé](https://www.numdam.org/item/SB_1972-1973__15__234_0/) and [Schmidt's book](https://doi.org/10.1007/BFb0080437)). He builds an auxiliary polynomial that vanishes to high order at every point being counted, and that multiplicity forces the count to be close to its expected value. Whole numbers have no notion of vanishing to high order ("something like differentiating whole numbers", as the announcement puts it).
+
+The new ingredient is to fake multiplicity with *chains of [theta lifts](https://en.wikipedia.org/wiki/Theta_correspondence)* (see [Howe](https://doi.org/10.1090/S0894-0347-1989-0985172-6) and [Rallis](https://www.numdam.org/item/CM_1984__51_3_333_0/)). These carry [automorphic forms](https://en.wikipedia.org/wiki/Automorphic_form) from one [unitary group](https://en.wikipedia.org/wiki/Unitary_group) to a larger one, step by step. In Lean, a chain is the inductive [`IsIterLift`](lean/src/Development/AbelianVarietyTheory/BlockTheory/TwistedDiscreteSeries/IteratedLiftChains.lean#L91-L99), where each step integrates against a theta kernel. Each lift plays the role of one more order of vanishing. For a sum over primes up to X, weighted by the [von Mangoldt function](https://en.wikipedia.org/wiki/Von_Mangoldt_function), the chain is about √X lifts long.
+
+A positivity argument built on the [Guinand–Weil explicit formula](https://en.wikipedia.org/wiki/Explicit_formulae_for_L-functions) ([Guinand 1948](https://doi.org/10.1112/plms/s2-50.2.107)) then turns this into "no zeros to the right of ½". The explicit formula for Dirichlet characters appears in Lean as [`norm_psi0_add_zsum_le`](lean/src/Development/AbelianVarietyTheory/Proofs/GlobalInterpolation/ExplicitFormulaClosedStatement.lean#L12).
+
+The full argument also uses:
+
+- [Iwasawa towers](https://en.wikipedia.org/wiki/Iwasawa_theory) ([Iwasawa 1959](https://doi.org/10.1090/S0002-9904-1959-10317-7))
+- Bost's slope inequality, from [Arakelov theory](https://en.wikipedia.org/wiki/Arakelov_theory) (see [Bost's Bourbaki exposé](https://www.numdam.org/item/SB_1994-1995__37__115_0/))
+- a [relative trace formula](https://en.wikipedia.org/wiki/Relative_trace_formula)
+- Bessel periods, from the [Gan–Gross–Prasad conjecture](https://en.wikipedia.org/wiki/Gan%E2%80%93Gross%E2%80%93Prasad_conjecture) ([Gan, Gross and Prasad](https://arxiv.org/abs/0909.2999)). In Lean, the Bessel period of a theta lift is computed in [`besselPeriod_thetaLift_eq_integral_kernel`](lean/src/Development/AbelianVarietyTheory/Proofs/DecoratedLatticeProofs/BesselPeriodThetaLiftEqIntegralKernelStatement.lean#L13), with seesaw identities such as [`seesaw_fubini_two_lifts_moderate_growth_kernels`](lean/src/Development/AbelianVarietyTheory/Proofs/DecoratedLatticeProofs/SeesawFubiniTwoLiftsModerateGrowthKernelsStatement.lean#L15)
+- a weakened form of [Vandiver's conjecture](https://en.wikipedia.org/wiki/Kummer%E2%80%93Vandiver_conjecture)
+- [Behrend sets](https://en.wikipedia.org/wiki/Salem%E2%80%93Spencer_set) ([Behrend 1946](https://doi.org/10.1073/pnas.32.12.331)), stated in Lean as [`BehrendFree` and `BehrendBound`](lean/src/Formalism/BehrendSets/Statement.lean#L48-L56)
+
+Lean names don't map one-to-one onto these ideas, so Lean links are given only where a file clearly matches.
+
+The build statistics reflect that structure. Of about 4,000 hours of summed module compile time, 58% went to [abelian variety](https://en.wikipedia.org/wiki/Abelian_variety) and [CM](https://en.wikipedia.org/wiki/Complex_multiplication) theory ([`Development/AbelianVarietyTheory`](lean/src/Development/AbelianVarietyTheory)), 15% to automorphic arithmetic, including the theta correspondence ([`Development/AutomorphicArithmetic`](lean/src/Development/AutomorphicArithmetic)), and 8% to the automorphic spectrum ([`Development/AutomorphicSpectrum`](lean/src/Development/AutomorphicSpectrum)). These are per-module elapsed times, not measured CPU usage. The slowest single module, at 22 minutes, is [a theta-correspondence file](lean/src/Development/AutomorphicArithmetic/ThetaCorrespondence/ThetaPairLifts/ThirdPlaceSeries/SiegelEisensteinSecondTermHypotheses.lean) about [Siegel–Eisenstein series](https://en.wikipedia.org/wiki/Siegel_Eisenstein_series) (see also the [Siegel–Weil formula](https://en.wikipedia.org/wiki/Siegel%E2%80%93Weil_formula) and [Weil 1965](https://doi.org/10.1007/BF02391774)).
+
+The verification run built all 175,187 modules with no errors. `#print axioms` (run by [`verify.sh`](verify.sh)) shows the five main theorems depend only on [Lean's standard axioms](https://lean-lang.org/theorem_proving_in_lean4/Axioms-and-Computation/) (`propext`, `Classical.choice`, `Quot.sound`). So there is no `sorry` and no extra assumption. The statement being proved is Mathlib's own [`RiemannHypothesis`](https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/RiemannZeta.html#RiemannHypothesis), not a custom definition. Lean's check says the argument is logically valid. It doesn't make the argument readable: the author says it is "incredibly long" and that a proper write-up is still to come.
 
 ## Getting Started
 
@@ -72,7 +101,7 @@ python3 aws/analyze.py # write aws/results/stats/report.html
 
 ![Dashboard tracking the build on a c6a.48xlarge](docs/tui.gif)
 
-Stay tuned for updates and further verification of the formalization.
+The [completed verification run](https://github.com/JGalego/riemann/releases/tag/verification-2026-11-22) includes the build log, axiom audit, per-module data and checksums. See the [verification report](https://jgalego.github.io/riemann/) for provenance and limitations.
 
 ## References
 

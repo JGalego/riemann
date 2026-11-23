@@ -19,11 +19,16 @@
   <p>
     On 20 November 2026, Levent Alpöge <a href="https://alpo.ge/remark.pdf">announced a proof</a> of the
     Riemann Hypothesis found together with Claude, along with a Lean 4 formalization.
-    This page reports an independent build of that formalization from scratch on a single AWS spot instance:
-    every module compiled, and the main theorems use no axioms beyond Lean's standard three.
+    This page reports an independent build of that formalization on AWS:
+    all 175,187 project modules compiled from source, and the main theorems use no axioms beyond Lean's standard three.
+    Mathlib came from its prebuilt cache; the <a href="#caveats">caveats</a> describe the limits of this run.
     All logs, scripts and hashes are below, so you can check the claims against the evidence, or run the build yourself.
   </p>
-  <nav class="toc">
+  <p class="meta">
+    Blog: <a href="https://builder.aws.com/content/3MQgDMMW6Kg6qZSjR9ozgcsogAv/did-claude-prove-the-riemann-hypothesis-lets-ask-a-spot-instance">Did Claude Prove the Riemann Hypothesis? Let's Ask a Spot Instance</a>
+    · <a href="https://github.com/JGalego/riemann/blob/main/blog/ask-a-spot-instance.md">Markdown source</a>
+  </p>
+  <nav class="toc" aria-label="Page sections">
     <a href="#summary">Summary</a>
     <a href="#statements">What was verified</a>
     <a href="#proof">How the proof works</a>
@@ -163,25 +168,29 @@ def PrimitiveDirichletLZerosOnLine : Prop :=
   <li><a href="https://en.wikipedia.org/wiki/Salem%E2%80%93Spencer_set">Behrend sets</a> (<a href="https://doi.org/10.1073/pnas.32.12.331">Behrend 1946</a>), stated in Lean as <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/BehrendSets/Statement.lean#L48-L56"><code>BehrendFree</code> and <code>BehrendBound</code></a></li>
 </ul>
 <p>Lean names don't map one-to-one onto these ideas, so Lean links are given only where a file clearly matches.</p>
-<p>The <a href="#build">build statistics</a> agree. Of about 4,000 CPU-hours of compilation, 58% went to <a href="https://en.wikipedia.org/wiki/Abelian_variety">abelian variety</a> and <a href="https://en.wikipedia.org/wiki/Complex_multiplication">CM</a> theory (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AbelianVarietyTheory"><code>Development/AbelianVarietyTheory</code></a>), 15% to automorphic arithmetic, including the theta correspondence (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicArithmetic"><code>Development/AutomorphicArithmetic</code></a>), and 8% to the automorphic spectrum (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicSpectrum"><code>Development/AutomorphicSpectrum</code></a>). The slowest single module, at 22 minutes, is <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AutomorphicArithmetic/ThetaCorrespondence/ThetaPairLifts/ThirdPlaceSeries/SiegelEisensteinSecondTermHypotheses.lean">a theta-correspondence file</a> about <a href="https://en.wikipedia.org/wiki/Siegel_Eisenstein_series">Siegel–Eisenstein series</a> (see also the <a href="https://en.wikipedia.org/wiki/Siegel%E2%80%93Weil_formula">Siegel–Weil formula</a> and <a href="https://doi.org/10.1007/BF02391774">Weil 1965</a>).</p>
+<p>The <a href="#build">build statistics</a> reflect that structure. Of about 4,000 hours of summed module compile time, 58% went to <a href="https://en.wikipedia.org/wiki/Abelian_variety">abelian variety</a> and <a href="https://en.wikipedia.org/wiki/Complex_multiplication">CM</a> theory (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AbelianVarietyTheory"><code>Development/AbelianVarietyTheory</code></a>), 15% to automorphic arithmetic, including the theta correspondence (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicArithmetic"><code>Development/AutomorphicArithmetic</code></a>), and 8% to the automorphic spectrum (<a href="https://github.com/JGalego/riemann/tree/main/lean/src/Development/AutomorphicSpectrum"><code>Development/AutomorphicSpectrum</code></a>). The slowest single module, at 22 minutes, is <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AutomorphicArithmetic/ThetaCorrespondence/ThetaPairLifts/ThirdPlaceSeries/SiegelEisensteinSecondTermHypotheses.lean">a theta-correspondence file</a> about <a href="https://en.wikipedia.org/wiki/Siegel_Eisenstein_series">Siegel–Eisenstein series</a> (see also the <a href="https://en.wikipedia.org/wiki/Siegel%E2%80%93Weil_formula">Siegel–Weil formula</a> and <a href="https://doi.org/10.1007/BF02391774">Weil 1965</a>).</p>
 </section>
 
 <section id="build">
 <h2>Build statistics</h2>
 <p>
   The build ran on a c6a.48xlarge spot instance (192 vCPU, 384 GiB) in eu-west-1 from
-  21 Nov 19:07 UTC to 22 Nov 16:26 UTC, with no spot interruptions. It used about 4,000 CPU-hours,
-  peaked at 33 GB of memory, wrote 94.6 GB of <code>.olean</code> files and cost about $74 in spot time.
+  21 Nov 19:07 UTC to 22 Nov 16:26 UTC, with no spot interruptions during the build.
+  Summed module compile time was 4,009.2 hours, sampled memory peaked at 33.1 GB, and the build wrote
+  94.6 GB of <code>.olean</code> files. The metrics estimate $80.57 for spot compute and the data volume
+  through the 22 Nov 18:09 UTC snapshot, including setup and time after compilation. This is not a final AWS bill
+  and excludes root-volume charges and costs outside that recorded window.
 </p>
 
 <h3>Modules built over time</h3>
 <div class="chart" id="build-chart"></div>
 <p class="meta">Cumulative count in 5-minute buckets, from <a href="data/timeseries.csv">timeseries.csv</a>. Hover for per-bucket detail.</p>
 
-<h3>Where the CPU time went</h3>
+<h3>Where the compile time went</h3>
+<p class="meta">These hours sum per-module elapsed compilation times, not measured CPU usage. Modules build in parallel.</p>
 <div class="table-scroll">
 <table>
-  <thead><tr><th>Part of the library</th><th class="num">Modules</th><th class="num">CPU-hours</th><th class="num">Share</th><th class="bar-cell" aria-hidden="true"></th></tr></thead>
+  <thead><tr><th>Part of the library</th><th class="num">Modules</th><th class="num">Compile-hours</th><th class="num">Share</th><th class="bar-cell" aria-hidden="true"></th></tr></thead>
   <tbody>
     <tr><td>Development.AbelianVarietyTheory</td><td class="num">99,187</td><td class="num">2,328.5</td><td class="num">58.1%</td><td class="bar-cell"><div class="bar" style="width:100%"></div></td></tr>
     <tr><td>Development.AutomorphicArithmetic</td><td class="num">18,431</td><td class="num">614.0</td><td class="num">15.3%</td><td class="bar-cell"><div class="bar" style="width:26.4%"></div></td></tr>
