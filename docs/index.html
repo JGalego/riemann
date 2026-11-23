@@ -154,6 +154,40 @@ def PrimitiveDirichletLZerosOnLine : Prop :=
 </figure>
 
 <p><strong>1. Only the right half needs checking.</strong> The zeros of <a href="https://en.wikipedia.org/wiki/Riemann_zeta_function">ζ</a> are mirror-symmetric about the line Re(s) = ½: a zero to the left of the line would have a twin to the right. So "every zero is on the line" is the same as "there are no zeros to the right of it". <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L5"><code>RhOfRight.lean</code></a> proves this in about 60 lines from ζ's <a href="https://en.wikipedia.org/wiki/Functional_equation_(L-function)">functional equation</a>, which goes back to <a href="https://en.wikipedia.org/wiki/On_the_Number_of_Primes_Less_Than_a_Given_Magnitude">Riemann's 1859 paper</a> (<a href="https://www.claymath.org/wp-content/uploads/2023/04/Wilkins-translation.pdf">English translation</a>) and is Mathlib's <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/RiemannZeta.html#riemannZeta_one_sub"><code>riemannZeta_one_sub</code></a> (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L28">used here</a>). <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L11-L27"><code>CritLine.lean</code></a> does the same for <a href="https://en.wikipedia.org/wiki/Dirichlet_L-function">Dirichlet L-functions</a> (Mathlib's <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction"><code>DirichletCharacter.LFunction</code></a>), using their functional equation <a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.IsPrimitive.completedLFunction_one_sub"><code>completedLFunction_one_sub</code></a> (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L22">used here</a>). ζ is the simplest Dirichlet L-function, the character mod 1 (<a href="https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/LSeries/DirichletContinuation.html#DirichletCharacter.LFunction_modOne_eq"><code>LFunction_modOne_eq</code></a>), so the Riemann Hypothesis drops out as a special case of the generalized one (<a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L29-L32"><code>rh_of_every</code></a>).</p>
+
+<h3 id="videos">Watch step 1 being proved</h3>
+<p>These animations replay the Lean proofs of step 1 tactic by tactic, made with <a href="https://github.com/dwrensha/animate-lean-proofs">animate-lean-proofs</a>: the header shows the tactic being run, and below it the goals split, grow and close. Each frame comes from replaying the proof against the verified build.</p>
+<figure>
+  <video controls preload="none" poster="videos/rh_of_right.jpg" width="1280" height="720">
+    <source src="videos/rh_of_right.mp4" type="video/mp4">
+    Your browser can't play this video. <a href="videos/rh_of_right.mp4">Download it</a> instead.
+  </video>
+  <figcaption><a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/RhOfRight.lean#L5"><code>rh_of_right</code></a> (1 min 32 s, 7 MB): the Riemann Hypothesis follows once there are no zeros to the right of the line. Watch each <code>have</code> add a hypothesis and the case split on Re(s) against ½.</figcaption>
+</figure>
+<figure>
+  <video controls preload="none" poster="videos/critLine.jpg" width="1280" height="720">
+    <source src="videos/critLine.mp4" type="video/mp4">
+    Your browser can't play this video. <a href="videos/critLine.mp4">Download it</a> instead.
+  </video>
+  <figcaption><a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L11-L27"><code>critLine</code></a> (32 s, 3 MB): the same reduction for Dirichlet L-functions.</figcaption>
+</figure>
+<div class="videos">
+  <figure>
+    <video controls preload="none" poster="videos/gammaFactor_ne_zero.jpg" width="1280" height="720">
+      <source src="videos/gammaFactor_ne_zero.mp4" type="video/mp4">
+      Your browser can't play this video. <a href="videos/gammaFactor_ne_zero.mp4">Download it</a> instead.
+    </video>
+    <figcaption><code>gammaFactor_ne_zero</code> (12 s, 0.5 MB).</figcaption>
+  </figure>
+  <figure>
+    <video controls preload="none" poster="videos/rh_of_every.jpg" width="1280" height="720">
+      <source src="videos/rh_of_every.mp4" type="video/mp4">
+      Your browser can't play this video. <a href="videos/rh_of_every.mp4">Download it</a> instead.
+    </video>
+    <figcaption><a href="https://github.com/JGalego/riemann/blob/main/lean/src/Formalism/GammaFactorNonvanishing/CritLine.lean#L29-L32"><code>rh_of_every</code></a> (4 s, 0.2 MB): the Riemann Hypothesis as a special case.</figcaption>
+  </figure>
+</div>
+<p class="meta">Videos are 720p re-encodes, and nothing downloads until you press play. They show the same tactics as the Lean source linked above, which remains the text version.</p>
 <p><strong>2. Everything else proves one statement.</strong> The remaining ~175,000 files prove <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AutomorphicArithmetic/CharacterBoxes/EveryCharacter.lean#L13-L14"><code>EveryCharacter</code></a>: no Dirichlet L-function has a zero with real part greater than ½. That is the <a href="https://en.wikipedia.org/wiki/Generalized_Riemann_hypothesis">Generalized Riemann Hypothesis</a>, and it is where the new mathematics lives. The main theorems in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Main.lean#L4-L12"><code>Main.lean</code></a> cover ζ, every Dirichlet L-function and the primitive ones, with the statements spelled out in <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Statements.lean#L3-L16"><code>Statements.lean</code></a>.</p>
 <p><strong>3. The idea: borrow a trick from finite fields.</strong> The finite-field analogue of the Riemann Hypothesis is part of the <a href="https://en.wikipedia.org/wiki/Weil_conjectures">Weil conjectures</a>, proved by Weil for curves (see his <a href="https://doi.org/10.1090/S0002-9904-1949-09219-4">1949 paper</a>) and by <a href="https://www.numdam.org/item/PMIHES_1974__43__273_0/">Deligne</a> in general. Stepanov found an elementary proof for curves (see <a href="https://www.numdam.org/item/SB_1972-1973__15__234_0/">Bombieri's Bourbaki exposé</a> and <a href="https://doi.org/10.1007/BFb0080437">Schmidt's book</a>). He builds an auxiliary polynomial that vanishes to high order at every point being counted, and that multiplicity forces the count to be close to its expected value. Whole numbers have no notion of vanishing to high order ("something like differentiating whole numbers", as the announcement puts it).</p>
 <p>The new ingredient is to fake multiplicity with <em>chains of <a href="https://en.wikipedia.org/wiki/Theta_correspondence">theta lifts</a></em> (see <a href="https://doi.org/10.1090/S0894-0347-1989-0985172-6">Howe</a> and <a href="https://www.numdam.org/item/CM_1984__51_3_333_0/">Rallis</a>). These carry <a href="https://en.wikipedia.org/wiki/Automorphic_form">automorphic forms</a> from one <a href="https://en.wikipedia.org/wiki/Unitary_group">unitary group</a> to a larger one, step by step. In Lean, a chain is the inductive <a href="https://github.com/JGalego/riemann/blob/main/lean/src/Development/AbelianVarietyTheory/BlockTheory/TwistedDiscreteSeries/IteratedLiftChains.lean#L91-L99"><code>IsIterLift</code></a>, where each step integrates against a theta kernel. Each lift plays the role of one more order of vanishing. For a sum over primes up to X, weighted by the <a href="https://en.wikipedia.org/wiki/Von_Mangoldt_function">von Mangoldt function</a>, the chain is about √X lifts long.</p>
